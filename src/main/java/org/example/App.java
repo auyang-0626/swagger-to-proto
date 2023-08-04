@@ -45,7 +45,7 @@ public class App {
         GenParam param = GenParam.builder()
                 // swagger的接口地址
                 .swaggerUrl("https://ad-crm-internal-cycle-operation.staging.kuaishou.com/rest/api/doc")
-                // 要生成哪些接口，模糊匹配
+                // 要生成哪些接口，模糊匹配,通过这个限制，一次只生成一个controller 下的
                 .pathFilter(List.of(
                         "/rest/crm/internal/cycle/operation/customer/customer/daily/view/list"
                 ))
