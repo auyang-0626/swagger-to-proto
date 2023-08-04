@@ -43,7 +43,9 @@ public class App {
 
 
         GenParam param = GenParam.builder()
+                // swagger的接口地址
                 .swaggerUrl("https://ad-crm-internal-cycle-operation.staging.kuaishou.com/rest/api/doc")
+                // 要生成哪些接口，模糊匹配
                 .pathFilter(List.of(
                         "/rest/crm/internal/cycle/operation/customer/customer/daily/view/list"
                 ))
@@ -52,10 +54,15 @@ public class App {
                         "/rest/crm/internal/cycle/operation/common/mail/send",
                         "/rest/crm/internal/cycle/operation/common/pdf/download"
                 ))*/
+                // 跳过哪些类
                 .skipType(List.of("PageInfo"))
+                // 生成的文件，输出的目录地址
                 .outPath("/Users/yang/IdeaProjects/kuaishou-ad-infra-customer-assets-service/ad-infra-customer-assets-service-client/src/main/proto")
+                // 生成的class名称
                 .className("CustomerAssetsOplog")
+                // 包名称
                 .packageName("com.kuaishou.ad.infra.customer.assets")
+                // 转换
                 .convertPackage("com.kuaishou.ad.infra.customer.assets.service.convert")
                 .build();
 
