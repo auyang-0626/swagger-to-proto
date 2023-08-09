@@ -15,6 +15,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.apache.commons.collections4.CollectionUtils;
@@ -43,31 +44,26 @@ public class App {
 
 
         GenParam param = GenParam.builder()
-                // swagger的接口地址
+                // swagger的接口地址,注意不是页面地址哈，通过F12可以看到类似的这种接口
                 .swaggerUrl("https://ad-crm-internal-cycle-operation.staging.kuaishou.com/rest/api/doc")
-                // 要生成哪些接口，模糊匹配,通过这个限制，一次只生成一个controller 下的
+                // 要生成哪些接口，模糊匹配,只要满足任意一个就会通过，也可以为空
                 .pathFilter(List.of(
-                        "/rest/crm/internal/cycle/operation/customer/customer/daily/view/list"
+                        "/rest/crm/internal/cycle/operation/common",
+                        "/rest/crm/internal/cycle/operation/customer/info"
                 ))
-                /*.ignoreFilter(List.of(
-                        "/rest/crm/internal/cycle/operation/common/tip/",
-                        "/rest/crm/internal/cycle/operation/common/mail/send",
-                        "/rest/crm/internal/cycle/operation/common/pdf/download"
-                ))*/
-                // 跳过哪些类
-                .skipType(List.of("PageInfo"))
-                // 生成的文件，输出的目录地址
-                .outPath("/Users/yang/IdeaProjects/kuaishou-ad-infra-customer-assets-service/ad-infra-customer-assets-service-client/src/main/proto")
-                // 生成的class名称
-                .className("CustomerAssetsOplog")
+                // 需要排除哪些接口，模糊匹配,只要满足任意一个就会排除
+                .ignoreFilter(List.of(
+                        //"/rest/crm/internal/cycle/operation/customer/customer/daily/view/list"
+                ))
+                // 生成的文件，输出的目录地址,必填哈，不然会写到根目录，导致没权限之类报错的
+                .outPath("/Users/yang/IdeaProjects/swagger-to-proto")
                 // 包名称
                 .packageName("com.kuaishou.ad.infra.customer.assets")
                 // 转换
-                .convertPackage("com.kuaishou.ad.infra.customer.assets.service.convert")
                 .build();
 
         GenModel genModel = parse(param);
-        System.out.println("genModel:" + JSON.toJSONString(genModel));
+        // System.out.println("genModel:" + JSON.toJSONString(genModel));
 
         generateProto(genModel);
 
@@ -79,14 +75,30 @@ public class App {
         cfg.setClassLoaderForTemplateLoading(App.class.getClassLoader(), "");
         cfg.setDefaultEncoding("UTF-8");
 
-        Template temp = cfg.getTemplate("proto.ftlh");
+        Template temp = cfg.getTemplate("model-proto.ftlh");
 
-        Writer out = new FileWriter(String.format("%s/%s", genModel.getOutDir(), CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, genModel.getClassName()) + ".proto"));
+        String outFileName = String.format("%s/common_model.proto", genModel.getOutDir());
+        System.out.println("写入文件:" + outFileName);
+        Writer out = new FileWriter(outFileName);
         temp.process(genModel, out);
 
-        for (DtoModel value : genModel.getRefModel().values()) {
-            generateConvert(cfg, genModel, value);
+        List<Map.Entry<String, List<MethodModel>>> methodModelMap = new ArrayList<>(genModel.getMethodModels()
+                .stream().collect(Collectors.groupingBy(MethodModel::getTag)).entrySet());
+        for (Map.Entry<String, List<MethodModel>> item : methodModelMap) {
+            Map<String, Object> data = new HashMap<>();
+            data.put("r", genModel);
+            data.put("packageName", genModel.getPackageName());
+            data.put("className", CaseFormat.LOWER_HYPHEN.to(CaseFormat.UPPER_CAMEL, item.getKey()));
+            data.put("methodModels", item.getValue());
+
+            Template serviceTemp = cfg.getTemplate("service-proto.ftlh");
+
+            Writer serviceOut = new FileWriter(String.format("%s/%s_service.proto", genModel.getOutDir(), CaseFormat.LOWER_HYPHEN.to(CaseFormat.LOWER_UNDERSCORE, item.getKey())));
+            serviceTemp.process(data, serviceOut);
         }
+      /*  for (DtoModel value : genModel.getRefModel().values()) {
+            generateConvert(cfg, genModel, value);
+        }*/
     }
 
     private static void generateConvert(Configuration cfg, GenModel genModel, DtoModel value) throws IOException, TemplateException {
@@ -139,6 +151,10 @@ public class App {
             });
             value.values().stream().findFirst().ifPresent(methodJson -> {
                 MethodModel.MethodModelBuilder builder = MethodModel.builder();
+                String tag = Optional.ofNullable(methodJson.getJSONArray("tags"))
+                        .map(v -> v.stream().findFirst().map(Object::toString).orElse("unknown"))
+                        .orElse("unknown").replace("-controller", "");
+                builder.tag(tag);
                 String methodName = StringUtils.capitalize(methodJson.getString("operationId").split("Using")[0]);
                 builder.name(methodName)
                         .desc(methodJson.getString("summary"));
@@ -157,7 +173,6 @@ public class App {
 
         return GenModel.builder()
                 .packageName(param.getPackageName())
-                .className(param.getClassName())
                 .outDir(param.getOutPath())
                 .refModel(refModel)
                 .methodModels(methodModels)

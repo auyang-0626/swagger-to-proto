@@ -15,6 +15,8 @@ import lombok.NoArgsConstructor;
 @Data
 public class MethodModel {
 
+    private String tag;
+
     private String name;
 
     private String desc;

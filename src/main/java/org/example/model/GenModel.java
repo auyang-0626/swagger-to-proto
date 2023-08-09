@@ -21,8 +21,6 @@ public class GenModel {
     // 包名称
     private String packageName;
 
-    private String className;
-
     private Map<String, DtoModel> refModel;
     private List<MethodModel> methodModels;
 

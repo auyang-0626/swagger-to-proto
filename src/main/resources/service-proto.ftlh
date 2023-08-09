@@ -6,19 +6,15 @@ option java_package = "${packageName}";
 option java_outer_classname = "${className}Proto";
 option java_multiple_files = true;
 
+<#list methodModels as method>
+    <#if method.paramName == 'google.protobuf.Empty' || method.respName == 'google.protobuf.Empty'>
 import "google/protobuf/empty.proto";
-
-
-
-<#list refModel as key,item>
-<#if !isSkip(item.name) >
-  message ${item.name}{
-    <#list item.attrs as attr>
-        <#if attr.repeat>repeated</#if> ${attr.typeForProto} ${attr.nameForProto} = ${attr?counter};
-    </#list>
-  }
-</#if>
+        <#break />
+    </#if>
 </#list>
+
+import "common_model.proto";
+
 
 
 service ${className}RpcService {
